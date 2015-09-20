@@ -1,25 +1,111 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 output: 
-  html_document:
-    keep_md: true
+html_document:
+keep_md: true
 ---
-
 
 ## Loading and preprocessing the data
 
+```{r loadLibraries, echo=TRUE, message=FALSE}
+#Loading the Libraries
+library (knitr)
+library(data.table)
+library(ggplot2)
+library(dplyr)
+```
+```{r setoptions, echo=TRUE, results='hide'}
+#Setting the global options for knitr
+opts_chunk$set(echo = FALSE, results = 'hide', tidy = TRUE)
+```
 
-
+Reading the Data:
+```{r readData1, echo=TRUE, results='hide'}
+#Reading the data
+activity <- read.csv(file = 'D:/DataScience/ReproducibleResearch/Proj 1/Repo/activity.csv', stringsAsFactors = FALSE, sep = ',')
+#Cleaning the data
+activity$date <- as.Date(activity$date)
+activity.complete <- activity[!is.na(activity$steps),] 
+```
+Below is a sample of the activity data
+```{r activity_head, results = 'hold'}
+head(activity, n = 7)
+```
 ## What is mean total number of steps taken per day?
+```{r mean_day, echo=TRUE, results='hold'}
+steps_per_day <- aggregate(formula = steps~date, data = activity.complete,FUN = sum)
+steps_per_day.mean <- round (mean(steps_per_day$steps),0)
+steps_per_day.mean_text <- as.character(steps_per_day.mean)
+steps_per_day.median <- round(median(steps_per_day$steps),0)
+steps_per_day.median_text <- as.character(steps_per_day.median)
+```
 
+* The mean number of steps per day is `r steps_per_day.mean_text`.
+* The median number of steps per day is `r steps_per_day.median_text`.
 
+```{r hist_day, echo=TRUE, results='hold', fig.height=6}
+hist(steps_per_day$steps, breaks = 15,main = 'Histogram of total number of steps taken each day', xlab = 'Total Number of Steps')
+```
 
 ## What is the average daily activity pattern?
 
+```{r time_series, echo=TRUE, results='hold'}
+steps_per_interval <- aggregate(formula = steps~interval, data = activity.complete,FUN = mean)
+steps_per_interval.max <- steps_per_interval[steps_per_interval$steps == max (steps_per_interval$steps),]
+max_interval <- steps_per_interval.max$interval
+max_interval.steps <- as.character(round(steps_per_interval.max$steps,0))
+plot(steps_per_interval$interval, steps_per_interval$steps, type = 'l', main = 'Time Series', xlab = '5 minute time interval', ylab = 'Average steps per day')
+```
+
+The 5-minute interval of `r max_interval` has the maximum average of `r max_interval.steps`  steps per day.
 
 
 ## Imputing missing values
 
+```{r missing_values_count, echo=TRUE, results='hold'}
+missing_value_count <- sum (is.na(activity$steps))
+```
 
+The total number of missing values in the dataset are `r missing_value_count`.
+
+Filling the missing values with the mean number of steps taken in the interval.
+```{r full_activity, echo=TRUE, results='hold'}
+activity.full <- merge(x = activity, y = steps_per_interval, by = "interval", all.x = TRUE)
+s <- c('steps.x', 'steps.y')
+activity.full[is.na(activity.full$steps.x),s[1]] <- activity.full[is.na(activity.full$steps.x),s[2]]
+activity.full <- activity.full[,c('interval', 'date', 'steps.x')]
+colnames(activity.full)[3] <- 'steps'
+```
+below is the extract of the filled dataset. It has not missing values
+```{r filled_dataset, echo=TRUE, results='hold'}
+head(activity.full, n = 7)
+sum(is.na(activity.full$steps))
+```
+Calculating Mean, Median & Histogram based on the filled dataset:
+```{r mean_day_full, echo=TRUE, results='hold'}
+steps_per_day_full <- aggregate(formula = steps~date, data = activity.full,FUN = sum)
+steps_per_day_full.mean <- round (mean(steps_per_day_full$steps),0)
+steps_per_day_full.mean_text <- as.character(steps_per_day_full.mean)
+steps_per_day_full.median <- round(median(steps_per_day_full$steps),0)
+steps_per_day_full.median_text <- as.character(steps_per_day_full.median)
+```
+
+* The mean number of steps per day is `r steps_per_day_full.mean_text`.
+* The median number of steps per day is `r steps_per_day_full.median_text`.
+
+```{r hist_day_full, echo=TRUE, results='hold', fig.height=6}
+hist(steps_per_day_full$steps, breaks = 15,main = 'Histogram of total number of steps taken each day', xlab = 'Total Number of Steps')
+```
+
+After filling in the missing data based on averages by interval, the is an insignificant change in the median. There is a small impact of imputing the missing data on the estimates of the total daily number of steps which does not seem to distort any decision making.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r factor_weekday, echo=TRUE, results='hold'}
+activity.full$day <- as.factor(ifelse(weekdays(activity.full$date) %in% c('Monday','Tuesday', 'Wednesday', 'Thursday', 'Friday' ), "Weekday", "Weekend")) 
+steps_per_interval_day  <- aggregate(x = activity.full$steps ,by = list(activity.full$interval, activity.full$day), FUN = mean)
+colnames(steps_per_interval_day) <- c ('interval', 'day', 'steps')
+# build the plot
+dayplot <- ggplot(steps_per_interval_day,aes(x=interval,y=steps, size=3)) + ggtitle('Time Series Plot of Average Steps by Interval & Day(weekday/weekend)') + facet_grid(. ~ day) + geom_line(size = 1)
+dayplot
+```
