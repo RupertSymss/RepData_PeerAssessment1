@@ -156,9 +156,9 @@ steps_per_interval_day <- aggregate(x = activity.full$steps, by = list(activity.
     activity.full$day), FUN = mean)
 colnames(steps_per_interval_day) <- c("interval", "day", "steps")
 # build the plot
-dayplot <- ggplot(steps_per_interval_day, aes(x = interval, y = steps, size = 3)) + 
+dayplot <- ggplot(steps_per_interval_day, aes(x = interval, y = steps, size = 6)) + 
     ggtitle("Time Series Plot of Average Steps by Interval & Day(weekday/weekend)") + 
-    facet_grid(. ~ day) + geom_line(size = 1)
+    facet_grid(. ~ day) + geom_line(size = 1) + facet_wrap(~day, nrow = 2, ncol = 1)
 dayplot
 ```
 
